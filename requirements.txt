@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+sqlalchemy~=2.0.40
+tronpy
+pytest
+pytest-asyncio
+httpx
+python-multipart
+pytest-mock
+aiosqlite
+pydantic~=2.11.1
