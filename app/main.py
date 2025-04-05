@@ -3,13 +3,13 @@ from tronpy import AsyncTron
 from tronpy.keys import to_base58check_address
 from tronpy.exceptions import AddressNotFound, ValidationError
 from tronpy.providers import AsyncHTTPProvider
-from .models import AddressQuery
-from .schemas import AddressRequest, AddressInfoResponse, QueryResponse
-from .dependencies import get_db
+from app.models import AddressQuery
+from app.schemas import AddressRequest, AddressInfoResponse, QueryResponse
+from app.dependencies import get_db
 from sqlalchemy import select
 from fastapi import FastAPI, Depends, HTTPException
 from contextlib import asynccontextmanager
-from .database import init_db
+from app.database import init_db
 import logging
 
 # Настройка логгера
@@ -53,6 +53,12 @@ async def get_address_info(
         account = await client.get_account(normalized_address)
         resources = await client.get_account_resource(normalized_address)
 
+        bandwidth_info = await client.get_bandwidth(normalized_address)
+
+        energy_limit = resources.get('TotalEnergyLimit', 0)
+        energy_used = resources.get('TotalEnergyWeight', 0)
+        energy = max(energy_limit - energy_used, 0)
+
         # Запись в БД
         query = AddressQuery(address=normalized_address)
         db.add(query)
@@ -61,8 +67,8 @@ async def get_address_info(
         return {
             "address": normalized_address,
             "balance": account.get("balance", 0),
-            "bandwidth": resources.get("free_net_limit", 0),
-            "energy": resources.get("energy_limit", 0),
+            "bandwidth": bandwidth_info,
+            "energy": energy,
         }
 
     except ValidationError as e:
