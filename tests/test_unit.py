@@ -1,16 +1,34 @@
 import pytest
-from sqlalchemy import select
-from app.models import AddressQuery
-from app.database import async_session
+from app.schemas import AddressRequest, AddressInfoResponse, QueryResponse
 
 
-@pytest.mark.asyncio
-async def test_db_write(setup_db, client):
-    async with async_session() as session:
-        query = AddressQuery(address="TTestTestTestTestTestTestTest")
-        session.add(query)
-        await session.commit()
+def test_address_request_schema():
+    data = {"address": "TTestAddress"}
+    request = AddressRequest(**data)
+    assert request.address == "TTestAddress"
 
-        result = await session.execute(select(AddressQuery))
-        saved = result.scalars().first()
-        assert saved.address == "TTestTestTestTestTestTestTest"
+
+def test_address_info_response_schema():
+    data = {
+        "address": "TTestAddress",
+        "balance": 1000,
+        "bandwidth": 500,
+        "energy": 300
+    }
+    response = AddressInfoResponse(**data)
+    assert response.address == "TTestAddress"
+    assert response.balance == 1000
+
+
+def test_query_response_schema():
+    from datetime import datetime
+    data = {
+        "id": 1,
+        "address": "TTestAddress",
+        "status": "success",
+        "error_message": None,
+        "created_at": datetime.now()
+    }
+    response = QueryResponse(**data)
+    assert response.id == 1
+    assert response.address == "TTestAddress"

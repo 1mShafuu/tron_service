@@ -13,8 +13,7 @@ def client():
 @pytest.fixture
 def mock_tron_client():
     client = AsyncMock()
-    # Убираем AsyncMock для is_address, так как он синхронный
-    client.is_address = Mock(return_value=True)  # <- Mock вместо AsyncMock
+    client.is_address = Mock(return_value=True)
     client.get_account = AsyncMock(return_value={"balance": 1500})
     client.get_account_resource = AsyncMock(return_value={
         'TotalNetLimit': 400,
@@ -25,17 +24,8 @@ def mock_tron_client():
     return client
 
 
-@pytest.fixture
-def mock_db_session():
-    session = AsyncMock()
-    session.add = AsyncMock()
-    session.commit = AsyncMock()
-    return session
-
-
-
 @pytest.mark.asyncio
-async def test_get_address_info_success(client, mock_tron_client, mock_db_session):
+async def test_get_address_info_success(client, mock_tron_client):
     test_data = {
         "input_address": "TEST_ADDR",
         "normalized_address": "TTestTestTestTestTestTestTest",
@@ -49,7 +39,7 @@ async def test_get_address_info_success(client, mock_tron_client, mock_db_sessio
 
     with patch('app.main.to_base58check_address', return_value=test_data["normalized_address"]), \
             patch('app.main.AsyncTron', return_value=mock_tron_client), \
-            patch('app.main.get_db', return_value=mock_db_session):
+            patch('app.main.get_db', new_callable=AsyncMock):
         response = client.post(
             "/address-info/",
             json={"address": test_data["input_address"]}
@@ -84,3 +74,18 @@ async def test_address_not_found(client, mock_tron_client):
 
         assert response.status_code == 404
         assert "Address not found" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_internal_server_error(client, mock_tron_client):
+    mock_tron_client.get_account.side_effect = Exception("Some error")
+
+    with patch('app.main.AsyncTron', return_value=mock_tron_client), \
+            patch('app.main.to_base58check_address', return_value="TTestAddress"):
+        response = client.post(
+            "/address-info/",
+            json={"address": "TEST_ADDR"}
+        )
+
+        assert response.status_code == 500
+        assert "Internal server error" in response.json()["detail"]

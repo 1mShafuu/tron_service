@@ -16,4 +16,6 @@ class AddressInfoResponse(BaseModel):
 class QueryResponse(BaseModel):
     id: int
     address: str
+    status: str
+    error_message: str | None
     created_at: datetime
