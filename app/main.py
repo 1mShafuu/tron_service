@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from tronpy import AsyncTron
 from tronpy.keys import to_base58check_address
-from tronpy.exceptions import AddressNotFound, ValidationError
+from tronpy.exceptions import ValidationError, BadAddress, AddressNotFound
 from tronpy.providers import AsyncHTTPProvider
 from app.models import AddressQuery
 from app.schemas import AddressRequest, AddressInfoResponse, QueryResponse
@@ -11,6 +11,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from contextlib import asynccontextmanager
 from app.database import init_db
 import logging
+import uvicorn
 
 # Настройка логгера
 logger = logging.getLogger(__name__)
@@ -44,20 +45,20 @@ async def get_address_info(
         client: AsyncTron = Depends(get_tron_client)
 ):
     try:
-        # Нормализация и валидация адреса
+        # Нормализация адреса
         normalized_address = to_base58check_address(request.address)
-        if not client.is_address(normalized_address):
-            raise ValidationError("Invalid address format")
 
-        # Получение данных из сети Tron
+        # Проверка валидности адреса
+        if not client.is_address(normalized_address):
+            raise ValidationError("Invalid address")
+
+        # Получение данных
         account = await client.get_account(normalized_address)
         resources = await client.get_account_resource(normalized_address)
 
-        bandwidth_info = await client.get_bandwidth(normalized_address)
-
-        energy_limit = resources.get('TotalEnergyLimit', 0)
-        energy_used = resources.get('TotalEnergyWeight', 0)
-        energy = max(energy_limit - energy_used, 0)
+        # Расчет значений
+        bandwidth = resources.get('TotalNetLimit', 0) - resources.get('TotalNetWeight', 0)
+        energy = resources.get('TotalEnergyLimit', 0) - resources.get('TotalEnergyWeight', 0)
 
         # Запись в БД
         query = AddressQuery(address=normalized_address)
@@ -67,19 +68,18 @@ async def get_address_info(
         return {
             "address": normalized_address,
             "balance": account.get("balance", 0),
-            "bandwidth": bandwidth_info,
-            "energy": energy,
+            "bandwidth": bandwidth,
+            "energy": energy
         }
 
-    except ValidationError as e:
-        logger.error(f"Validation error: {str(e)}")
+    except BadAddress as e:
+        logger.error(f"Address validation error: {str(e)}")
         raise HTTPException(400, detail=str(e))
     except AddressNotFound:
-        raise HTTPException(404, "Address not found in Tron network")
+        raise HTTPException(404, "Address not found")
     except Exception as e:
         logger.error(f"API error: {str(e)}", exc_info=True)
         raise HTTPException(500, "Internal server error")
-
 
 @app.get("/queries/", response_model=list[QueryResponse])
 async def get_queries(
