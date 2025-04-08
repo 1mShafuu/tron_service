@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  tron-api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - TRON_API_KEY=${TRON_API_KEY}
+      - DATABASE_URL=sqlite:///./sql_app.db
+    volumes:
+      - ./sql_app.db:/app/sql_app.db
+    restart: unless-stopped
+

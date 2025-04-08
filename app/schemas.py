@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
-
+from typing import Optional
 
 class AddressRequest(BaseModel):
     address: str
@@ -17,5 +17,5 @@ class QueryResponse(BaseModel):
     id: int
     address: str
     status: str
-    error_message: str | None
+    error_message: Optional[str]
     created_at: datetime
