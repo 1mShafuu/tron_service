@@ -12,10 +12,14 @@
 Клонируйте репозиторий:
  git clone https://github.com/репозиторий/tron-api.git
  cd tron-api
+
 Создайте файл .env и укажите ваш API-ключ:
  echo "TRON_API_KEY=ваш_api_ключ_здесь" > .env
+
 Соберите и запустите контейнер:
  docker-compose up -d --build
+
+
 Сервис будет доступен по адресу:
  http://localhost:8000
 
